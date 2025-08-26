@@ -9,6 +9,8 @@ export type SearchIssuesInput = {
   severities?: string | string[];
   ps?: number;
   p?: number;
+  organization?: string;
+  sinceLeakPeriod?: boolean;
 };
 
 export type GetIssueInput = { key: string };
@@ -19,6 +21,14 @@ export type ListRulesInput = {
   q?: string;
   ps?: number;
   p?: number;
+};
+
+export type ParsedSonarUrl = {
+  projectId: string;
+  pullRequest?: string;
+  issueStatuses?: string[];
+  sinceLeakPeriod?: boolean;
+  organization?: string;
 };
 
 function ensureEnv(): { baseUrl: string; authHeader: string } {
@@ -68,6 +78,51 @@ function parseInput(input: unknown): any {
   return input || {};
 }
 
+function parseSonarCloudUrl(url: string): ParsedSonarUrl {
+  try {
+    const urlObj = new URL(url);
+    
+    // Extract project ID from the id parameter
+    const projectId = urlObj.searchParams.get('id');
+    if (!projectId) {
+      throw new Error('Project ID not found in URL');
+    }
+
+    const result: ParsedSonarUrl = {
+      projectId
+    };
+
+    // Extract pull request number
+    const pullRequest = urlObj.searchParams.get('pullRequest');
+    if (pullRequest) {
+      result.pullRequest = pullRequest;
+    }
+
+    // Extract issue statuses
+    const issueStatuses = urlObj.searchParams.get('issueStatuses');
+    if (issueStatuses) {
+      result.issueStatuses = issueStatuses.split(',');
+    }
+
+    // Extract sinceLeakPeriod
+    const sinceLeakPeriod = urlObj.searchParams.get('sinceLeakPeriod');
+    if (sinceLeakPeriod) {
+      result.sinceLeakPeriod = sinceLeakPeriod === 'true';
+    }
+
+    // Extract organization from URL path if present
+    const pathParts = urlObj.pathname.split('/');
+    const projectIndex = pathParts.findIndex(part => part === 'project');
+    if (projectIndex > 0) {
+      result.organization = pathParts[projectIndex - 1];
+    }
+
+    return result;
+  } catch (error) {
+    throw new Error(`Failed to parse SonarCloud URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+  }
+}
+
 export async function sonarSearchIssues(input: unknown) {
   const params = parseInput(input);
   // Add defaults from environment if nothing provided
@@ -101,6 +156,24 @@ export async function sonarListRules(input: unknown) {
     params.organization = process.env.SONAR_ORGANIZATION || '';
   }
   return doGet('/api/rules/search', params);
+}
+
+export async function sonarSearchPullRequestIssues(url: string) {
+  const parsedUrl = parseSonarCloudUrl(url);
+  
+  const params: SearchIssuesInput = {
+    componentKeys: parsedUrl.projectId,
+    pullRequest: parsedUrl.pullRequest,
+    statuses: parsedUrl.issueStatuses,
+    sinceLeakPeriod: parsedUrl.sinceLeakPeriod
+  };
+
+  // Add organization if found in URL, otherwise use default
+  if (parsedUrl.organization) {
+    params.organization = parsedUrl.organization;
+  }
+
+  return sonarSearchIssues(params);
 }
 
 

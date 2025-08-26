@@ -46,6 +46,44 @@ function parseInput(input) {
     }
     return input || {};
 }
+function parseSonarCloudUrl(url) {
+    try {
+        const urlObj = new URL(url);
+        // Extract project ID from the id parameter
+        const projectId = urlObj.searchParams.get('id');
+        if (!projectId) {
+            throw new Error('Project ID not found in URL');
+        }
+        const result = {
+            projectId
+        };
+        // Extract pull request number
+        const pullRequest = urlObj.searchParams.get('pullRequest');
+        if (pullRequest) {
+            result.pullRequest = pullRequest;
+        }
+        // Extract issue statuses
+        const issueStatuses = urlObj.searchParams.get('issueStatuses');
+        if (issueStatuses) {
+            result.issueStatuses = issueStatuses.split(',');
+        }
+        // Extract sinceLeakPeriod
+        const sinceLeakPeriod = urlObj.searchParams.get('sinceLeakPeriod');
+        if (sinceLeakPeriod) {
+            result.sinceLeakPeriod = sinceLeakPeriod === 'true';
+        }
+        // Extract organization from URL path if present
+        const pathParts = urlObj.pathname.split('/');
+        const projectIndex = pathParts.findIndex(part => part === 'project');
+        if (projectIndex > 0) {
+            result.organization = pathParts[projectIndex - 1];
+        }
+        return result;
+    }
+    catch (error) {
+        throw new Error(`Failed to parse SonarCloud URL: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+}
 export async function sonarSearchIssues(input) {
     const params = parseInput(input);
     // Add defaults from environment if nothing provided
@@ -76,4 +114,18 @@ export async function sonarListRules(input) {
         params.organization = process.env.SONAR_ORGANIZATION || '';
     }
     return doGet('/api/rules/search', params);
+}
+export async function sonarSearchPullRequestIssues(url) {
+    const parsedUrl = parseSonarCloudUrl(url);
+    const params = {
+        componentKeys: parsedUrl.projectId,
+        pullRequest: parsedUrl.pullRequest,
+        statuses: parsedUrl.issueStatuses,
+        sinceLeakPeriod: parsedUrl.sinceLeakPeriod
+    };
+    // Add organization if found in URL, otherwise use default
+    if (parsedUrl.organization) {
+        params.organization = parsedUrl.organization;
+    }
+    return sonarSearchIssues(params);
 }

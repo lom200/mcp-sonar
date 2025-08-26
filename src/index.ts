@@ -2,7 +2,7 @@
 import 'dotenv/config';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { sonarSearchIssues, sonarGetIssue, sonarListRules } from './sonar.js';
+import { sonarSearchIssues, sonarGetIssue, sonarListRules, sonarSearchPullRequestIssues } from './sonar.js';
 
 function getServer(): McpServer {
   const mcp = new McpServer({ name: 'mcp-sonar', version: '0.1.0' });
@@ -33,6 +33,17 @@ function getServer(): McpServer {
     description: 'Search issues in SonarCloud/SonarQube'
   }, async (args: unknown) => {
     const data = await sonarSearchIssues(args);
+    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  });
+
+  mcp.registerTool('sonar.search_pull_request_issues', {
+    description: 'Search issues for a specific pull request using SonarCloud URL. Pass the full URL from SonarCloud pull request issues page.'
+  }, async (args: unknown) => {
+    const params = typeof args === 'string' ? { url: args } : args as { url: string };
+    if (!params.url) {
+      throw new Error('URL parameter is required');
+    }
+    const data = await sonarSearchPullRequestIssues(params.url);
     return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
   });
 
