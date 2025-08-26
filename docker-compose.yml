@@ -1,0 +1,13 @@
+version: '3.8'
+
+services:
+  mcp-sonar:
+    build: .
+    container_name: mcp-sonar
+    ports:
+      - "3001:3000"
+    env_file:
+      - .env
+    restart: unless-stopped
+
+

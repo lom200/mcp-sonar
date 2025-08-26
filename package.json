@@ -1,0 +1,22 @@
+{
+  "name": "mcp-sonar",
+  "version": "0.1.0",
+  "description": "MCP integration for SonarCloud/SonarQube",
+  "type": "module",
+  "main": "dist/index.js",
+  "license": "MIT",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js --transport streamable-http --host 0.0.0.0 --port 3000"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.2.0",
+    "undici": "^6.19.8"
+  },
+  "devDependencies": {
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
+
+
