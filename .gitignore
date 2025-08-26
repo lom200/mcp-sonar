@@ -2,4 +2,7 @@ node_modules/
 .env
 dist/
 
+# Deployment docs (private)
+DEPLOY.md
+
 

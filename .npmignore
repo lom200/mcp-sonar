@@ -1,0 +1,16 @@
+# Source files
+src/
+tsconfig.json
+
+# Development files
+.env
+.env.example
+.github/
+node_modules/
+
+# Documentation
+README.md
+
+# Git files
+.git/
+.gitignore
