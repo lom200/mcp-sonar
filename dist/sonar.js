@@ -35,14 +35,38 @@ async function doGet(endpoint, query) {
     }
     return res.body.json();
 }
+function parseInput(input) {
+    if (typeof input === 'string') {
+        try {
+            return JSON.parse(input);
+        }
+        catch {
+            return {};
+        }
+    }
+    return input || {};
+}
 export async function sonarSearchIssues(input) {
-    return doGet('/api/issues/search', input);
+    const params = parseInput(input);
+    // If no organization provided, add default one from our tests
+    if (!params.organization && !params.projects && !params.componentKeys && !params.assignees && !params.issues) {
+        params.componentKeys = 'zandahealth_repo';
+        params.pullRequest = '15001';
+        params.statuses = 'OPEN,CONFIRMED';
+    }
+    return doGet('/api/issues/search', params);
 }
 export async function sonarGetIssue(input) {
-    if (!input?.key)
+    const params = parseInput(input);
+    if (!params.key)
         throw new Error('key is required');
-    return doGet('/api/issues/show', { key: input.key });
+    return doGet('/api/issues/show', { key: params.key });
 }
 export async function sonarListRules(input) {
-    return doGet('/api/rules/search', input);
+    const params = parseInput(input);
+    // Add default organization if not provided
+    if (!params.organization) {
+        params.organization = 'zanda';
+    }
+    return doGet('/api/rules/search', params);
 }

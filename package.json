@@ -4,6 +4,9 @@
   "description": "MCP integration for SonarCloud/SonarQube",
   "type": "module",
   "main": "dist/index.js",
+  "bin": {
+    "mcp-sonar": "dist/index.js"
+  },
   "license": "MIT",
   "scripts": {
     "build": "tsc",
@@ -11,6 +14,7 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.2.0",
+    "dotenv": "^17.2.1",
     "undici": "^6.19.8"
   },
   "devDependencies": {
@@ -18,5 +22,3 @@
     "typescript": "^5.4.5"
   }
 }
-
-
