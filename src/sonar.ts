@@ -70,10 +70,19 @@ function parseInput(input: unknown): any {
 
 export async function sonarSearchIssues(input: unknown) {
   const params = parseInput(input);
-  // If no organization provided, add default one from our tests
+  // Add defaults from environment if nothing provided
   if (!params.organization && !params.projects && !params.componentKeys && !params.assignees && !params.issues) {
-    params.componentKeys = 'zandahealth_repo';
-    params.pullRequest = '15001';
+    const defaultProject = process.env.SONAR_PROJECT;
+    const defaultOrg = process.env.SONAR_ORGANIZATION;
+    
+    if (defaultProject) {
+      params.componentKeys = defaultProject;
+    }
+    if (defaultOrg) {
+      params.organization = defaultOrg;
+    }
+    
+    // Default filters for new issues
     params.statuses = 'OPEN,CONFIRMED';
   }
   return doGet('/api/issues/search', params);
@@ -87,9 +96,9 @@ export async function sonarGetIssue(input: unknown) {
 
 export async function sonarListRules(input: unknown) {
   const params = parseInput(input);
-  // Add default organization if not provided
+  // Add default organization from environment if not provided
   if (!params.organization) {
-    params.organization = 'zanda';
+    params.organization = process.env.SONAR_ORGANIZATION || '';
   }
   return doGet('/api/rules/search', params);
 }
