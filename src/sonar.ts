@@ -125,19 +125,15 @@ function parseSonarCloudUrl(url: string): ParsedSonarUrl {
 
 export async function sonarSearchIssues(input: unknown) {
   const params = parseInput(input);
-  // Add defaults from environment if nothing provided
-  if (!params.organization && !params.projects && !params.componentKeys && !params.assignees && !params.issues) {
-    const defaultProject = process.env.SONAR_PROJECT;
-    const defaultOrg = process.env.SONAR_ORGANIZATION;
-    
-    if (defaultProject) {
-      params.componentKeys = defaultProject;
-    }
-    if (defaultOrg) {
-      params.organization = defaultOrg;
-    }
-    
-    // Default filters for new issues
+  // Defaults from environment when absent
+  if (!params.componentKeys && process.env.SONAR_PROJECT) {
+    params.componentKeys = process.env.SONAR_PROJECT;
+  }
+  if (!params.organization && process.env.SONAR_ORGANIZATION) {
+    params.organization = process.env.SONAR_ORGANIZATION;
+  }
+  // Friendly default statuses if not provided
+  if (!params.statuses) {
     params.statuses = 'OPEN,CONFIRMED';
   }
   return doGet('/api/issues/search', params);
@@ -164,13 +160,16 @@ export async function sonarSearchPullRequestIssues(url: string) {
   const params: SearchIssuesInput = {
     componentKeys: parsedUrl.projectId,
     pullRequest: parsedUrl.pullRequest,
-    statuses: parsedUrl.issueStatuses,
-    sinceLeakPeriod: parsedUrl.sinceLeakPeriod
+    statuses: parsedUrl.issueStatuses || 'OPEN,CONFIRMED',
+    sinceLeakPeriod: parsedUrl.sinceLeakPeriod ?? true
   };
 
   // Add organization if found in URL, otherwise use default
   if (parsedUrl.organization) {
     params.organization = parsedUrl.organization;
+  }
+  if (!params.organization && process.env.SONAR_ORGANIZATION) {
+    params.organization = process.env.SONAR_ORGANIZATION;
   }
 
   return sonarSearchIssues(params);
