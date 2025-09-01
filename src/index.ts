@@ -3,7 +3,7 @@ import 'dotenv/config';
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { sonarSearchIssues, sonarGetIssue, sonarListRules, sonarSearchPullRequestIssues } from './sonar.js';
+import { sonarSearchIssues, sonarSearchPullRequestIssues } from './sonar.js';
 
 function extractUrlFromArgs(args: unknown): string {
   if (typeof args === 'object' && args !== null && 'random_string' in args) {
@@ -156,48 +156,32 @@ function getServer(): McpServer {
     };
   });
 
-  mcp.registerTool('sonar.search_issues', {
-    title: 'Search Issues',
-    description: 'Search issues in SonarCloud/SonarQube. statuses supports string "OPEN,CONFIRMED" or array ["OPEN","CONFIRMED"].',
-    inputSchema: {
-      componentKeys: z.union([z.string(), z.array(z.string())]).optional().describe('Project key(s). If omitted, uses SONAR_PROJECT'),
-      projects: z.union([z.string(), z.array(z.string())]).optional().describe('Alternative to componentKeys'),
-      pullRequest: z.string().optional().describe('Pull request number as string'),
-      statuses: z.union([
-        z.string(),
-        z.array(z.enum(['OPEN','CONFIRMED','REOPENED','RESOLVED','CLOSED']))
-      ]).optional().describe('Issue statuses. Example: "OPEN,CONFIRMED" or ["OPEN","CONFIRMED"]'),
-      types: z.union([z.string(), z.array(z.string())]).optional().describe('Issue types filter'),
-      severities: z.union([z.string(), z.array(z.string())]).optional().describe('Severity filter'),
-      ps: z.number().int().optional().describe('Page size'),
-      p: z.number().int().optional().describe('Page index'),
-      organization: z.string().optional().describe('Organization key. If omitted, uses SONAR_ORGANIZATION'),
-      sinceLeakPeriod: z.boolean().optional().describe('Limit to current leak period')
-    }
-  }, async (args: unknown) => {
-    const data = await sonarSearchIssues(args);
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-  });
-
-  mcp.registerTool('sonar.search_pull_request_issues_from_url', {
+  mcp.registerTool('search_pull_request_issues_from_url', {
     title: 'PR Issues from URL',
     description: 'Search PR issues by parsing a SonarCloud PR issues page URL (copy-paste full browser URL).',
     inputSchema: {
-      url: z.string().url().describe('Full SonarCloud PR issues URL')
+      url: z.string().describe('Full SonarCloud PR issues URL')
     }
   }, async (args: unknown) => {
     try {
       const url = extractUrlFromArgs(args);
+      // eslint-disable-next-line no-console
       console.error(`Extracted URL: ${url}`);
+      if (process.env.MCP_LOCAL_ECHO === '1') {
+        // eslint-disable-next-line no-console
+        console.error('MCP_LOCAL_ECHO is ON: returning echo response');
+        return { content: [{ type: 'text', text: `ECHO: ${url}` }] };
+      }
       const data = await sonarSearchPullRequestIssues(url);
       return formatPullRequestIssuesResponse(data);
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error(`Error in search_pull_request_issues_from_url: ${error}`);
       return { content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}` }] };
     }
   });
 
-  mcp.registerTool('sonar.search_pull_request_issues_by_params', {
+  mcp.registerTool('search_pull_request_issues_by_params', {
     title: 'PR Issues by Params',
     description: 'Search PR issues using explicit params. Examples: statuses: "OPEN,CONFIRMED" OR ["OPEN","CONFIRMED"]. If componentKeys/org omitted, env defaults are used.',
     inputSchema: {
@@ -213,6 +197,7 @@ function getServer(): McpServer {
   }, async (args: unknown) => {
     try {
       const params = parseMcpArgs(args) as any;
+      // eslint-disable-next-line no-console
       console.error(`Parsed params: ${JSON.stringify(params)}`);
       if (!params.componentKeys) params.componentKeys = process.env.SONAR_PROJECT;
       if (!params.organization) params.organization = process.env.SONAR_ORGANIZATION;
@@ -222,36 +207,21 @@ function getServer(): McpServer {
       const data = await sonarSearchIssues(params);
       return formatPullRequestIssuesResponse(data);
     } catch (error) {
+      // eslint-disable-next-line no-console
       console.error(`Error in search_pull_request_issues_by_params: ${error}`);
       return { content: [{ type: 'text', text: `Error: ${error instanceof Error ? error.message : 'Unknown error'}` }] };
     }
   });
 
-  mcp.registerTool('sonar.get_issue', {
-    title: 'Get Issue',
-    description: 'Get a single issue by key',
-    inputSchema: {
-      key: z.string().describe('Issue key, e.g. AXabc123')
-    }
-  }, async (args: unknown) => {
-    const data = await sonarGetIssue(args);
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
-  });
-
-  mcp.registerTool('sonar.list_rules', {
-    title: 'List Rules',
-    description: 'List SonarCloud/SonarQube rules with optional filters',
-    inputSchema: {
-      languages: z.union([z.string(), z.array(z.string())]).optional().describe('Language keys like ts, js, csharp'),
-      repositories: z.union([z.string(), z.array(z.string())]).optional().describe('Repository keys'),
-      q: z.string().optional().describe('Query string'),
-      ps: z.number().int().optional().describe('Page size'),
-      p: z.number().int().optional().describe('Page index'),
-      organization: z.string().optional().describe('Defaults to SONAR_ORGANIZATION')
-    }
-  }, async (args: unknown) => {
-    const data = await sonarListRules(args);
-    return { content: [{ type: 'text', text: JSON.stringify(data, null, 2) }] };
+  // Debug tool (simple)
+  mcp.registerTool('debug_ping', {
+    title: 'Debug Ping',
+    description: 'Returns a simple pong with timestamp'
+  }, async () => {
+    const now = new Date().toISOString();
+    // eslint-disable-next-line no-console
+    console.error(`[debug.ping] ${now}`);
+    return { content: [{ type: 'text', text: `pong ${now}` }] };
   });
 
   return mcp;
