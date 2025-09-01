@@ -58,11 +58,9 @@ Restart Cursor after editing `mcp.json`.
 
 ## Tools
 Available tools:
-- sonar.search_issues: search issues in your projects
-- sonar.search_pull_request_issues_from_url: parse a SonarCloud PR issues URL and fetch issues
-- sonar.search_pull_request_issues_by_params: search PR issues using explicit parameters
-- sonar.get_issue: get a single issue by key
-- sonar.list_rules: list available rules
+- `search_pull_request_issues_from_url`: parse a SonarCloud PR issues URL and fetch issues
+- `search_pull_request_issues_by_params`: search PR issues using explicit parameters
+- `debug_ping`: simple ping tool for testing connectivity
 
 Example (PR issues from URL):
 ```
