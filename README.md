@@ -1,6 +1,6 @@
 # mcp-sonar
 
-MCP integration for SonarCloud/SonarQube. Provides tools to search issues, get a single issue, and list rules via the Model Context Protocol.
+MCP integration for SonarCloud/SonarQube. Provides tools to search pull request issues via the Model Context Protocol.
 
 ## Quick start
 
@@ -57,15 +57,24 @@ Restart Cursor after editing `mcp.json`.
 - SONAR_ORGANIZATION: optional default organization
 
 ## Tools
-Available tools:
-- `search_pull_request_issues_from_url`: parse a SonarCloud PR issues URL and fetch issues
-- `search_pull_request_issues_by_params`: search PR issues using explicit parameters
-- `debug_ping`: simple ping tool for testing connectivity
 
-Example (PR issues from URL):
+### `search_pull_request_issues_from_url` - **RECOMMENDED**
+Parse a SonarCloud PR issues URL and fetch issues. This is the primary tool for most use cases.
+
+**Usage:**
 ```
 Use mcp-sonar and retrieve issues from https://sonarcloud.io/project/issues?id=your_project&pullRequest=123&issueStatuses=OPEN,CONFIRMED&sinceLeakPeriod=true
 ```
+
+### `search_pull_request_issues_by_params` - **ADVANCED**
+Search PR issues using explicit parameters. Use only when URL parsing is not possible.
+
+**Parameters:**
+- `pullRequest` (required): Pull request number
+- `componentKeys` (optional): Project key; defaults to SONAR_PROJECT
+- `organization` (optional): Org key; defaults to SONAR_ORGANIZATION  
+- `statuses` (optional): Statuses filter (e.g., "OPEN,CONFIRMED" or ["OPEN","CONFIRMED"])
+- `sinceLeakPeriod` (optional): Defaults to true when not provided
 
 ## Development
 ```bash

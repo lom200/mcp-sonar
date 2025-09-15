@@ -35,29 +35,10 @@ function parseMcpArgs(args: unknown): any {
       const parsed = JSON.parse(randomString);
       if (typeof parsed === 'object' && parsed !== null) {
         return parsed;
-      } else if (typeof parsed === 'string') {
-        // If it's a string, try to parse it as URL parameters
-        const url = new URL(parsed);
-        const params: any = {};
-        if (url.searchParams.get('id')) params.componentKeys = url.searchParams.get('id');
-        if (url.searchParams.get('pullRequest')) params.pullRequest = url.searchParams.get('pullRequest');
-        if (url.searchParams.get('issueStatuses')) params.statuses = url.searchParams.get('issueStatuses')?.split(',');
-        if (url.searchParams.get('sinceLeakPeriod')) params.sinceLeakPeriod = url.searchParams.get('sinceLeakPeriod') === 'true';
-        return params;
       }
     } catch {
-      // If not JSON, try to parse as URL
-      try {
-        const url = new URL(randomString);
-        const params: any = {};
-        if (url.searchParams.get('id')) params.componentKeys = url.searchParams.get('id');
-        if (url.searchParams.get('pullRequest')) params.pullRequest = url.searchParams.get('pullRequest');
-        if (url.searchParams.get('issueStatuses')) params.statuses = url.searchParams.get('issueStatuses')?.split(',');
-        if (url.searchParams.get('sinceLeakPeriod')) params.sinceLeakPeriod = url.searchParams.get('sinceLeakPeriod') === 'true';
-        return params;
-      } catch {
-        return { url: randomString };
-      }
+      // If not JSON, treat as direct parameter object
+      return {};
     }
   }
   return args || {};
@@ -156,9 +137,11 @@ function getServer(): McpServer {
     };
   });
 
+  // Main tool - register first for priority
+  // Category: Primary, URL-based, Recommended
   mcp.registerTool('search_pull_request_issues_from_url', {
     title: 'PR Issues from URL',
-    description: 'Search PR issues by parsing a SonarCloud PR issues page URL (copy-paste full browser URL).',
+    description: '**RECOMMENDED** - Use this for most cases. Search PR issues by parsing a SonarCloud PR issues page URL (copy-paste full browser URL).',
     inputSchema: {
       url: z.string().describe('Full SonarCloud PR issues URL')
     }
@@ -181,9 +164,11 @@ function getServer(): McpServer {
     }
   });
 
+  // Advanced tool - register second
+  // Category: Advanced, Parameter-based, Fallback
   mcp.registerTool('search_pull_request_issues_by_params', {
     title: 'PR Issues by Params',
-    description: 'Search PR issues using explicit params. Examples: statuses: "OPEN,CONFIRMED" OR ["OPEN","CONFIRMED"]. If componentKeys/org omitted, env defaults are used.',
+    description: '**ADVANCED** - Use only when URL parsing is not possible. Search PR issues using explicit params. Examples: statuses: "OPEN,CONFIRMED" OR ["OPEN","CONFIRMED"]. If componentKeys/org omitted, env defaults are used.',
     inputSchema: {
       componentKeys: z.string().optional().describe('Project key; defaults to SONAR_PROJECT'),
       organization: z.string().optional().describe('Org key; defaults to SONAR_ORGANIZATION'),
@@ -199,11 +184,28 @@ function getServer(): McpServer {
       const params = parseMcpArgs(args) as any;
       // eslint-disable-next-line no-console
       console.error(`Parsed params: ${JSON.stringify(params)}`);
+      
+      // Validate that we have meaningful parameters
+      if (!params.pullRequest) {
+        throw new Error('pullRequest parameter is required for advanced search');
+      }
+      
+      // Check if this looks like a URL-based request that should use the main tool instead
+      const hasUrlLikeParams = params.url || (typeof args === 'string' && args.includes('sonarcloud.io'));
+      if (hasUrlLikeParams) {
+        return { 
+          content: [{ 
+            type: 'text', 
+            text: '⚠️ **RECOMMENDATION**: This appears to be a URL-based request. Please use the "PR Issues from URL" tool instead for better results.' 
+          }] 
+        };
+      }
+      
       if (!params.componentKeys) params.componentKeys = process.env.SONAR_PROJECT;
       if (!params.organization) params.organization = process.env.SONAR_ORGANIZATION;
       if (!params.statuses) params.statuses = 'OPEN,CONFIRMED';
       if (params.sinceLeakPeriod === undefined) params.sinceLeakPeriod = true;
-      if (!params.pullRequest) throw new Error('pullRequest parameter is required');
+      
       const data = await sonarSearchIssues(params);
       return formatPullRequestIssuesResponse(data);
     } catch (error) {
@@ -213,16 +215,6 @@ function getServer(): McpServer {
     }
   });
 
-  // Debug tool (simple)
-  mcp.registerTool('debug_ping', {
-    title: 'Debug Ping',
-    description: 'Returns a simple pong with timestamp'
-  }, async () => {
-    const now = new Date().toISOString();
-    // eslint-disable-next-line no-console
-    console.error(`[debug.ping] ${now}`);
-    return { content: [{ type: 'text', text: `pong ${now}` }] };
-  });
 
   return mcp;
 }
